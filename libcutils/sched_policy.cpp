@@ -267,8 +267,26 @@ int get_sched_policy(int tid, SchedPolicy *policy)
     } else if (!strcmp(grpBuf, "top-app")) {
         *policy = SP_TOP_APP;
     } else {
+<<<<<<< HEAD:libcutils/sched_policy.cpp
         errno = ERANGE;
         return -1;
+=======
+        int rc = sched_getscheduler(tid);
+        if (rc < 0)
+            return -1;
+        else if (rc == SCHED_NORMAL)
+            *policy = SP_FOREGROUND;
+        else if (rc == SCHED_BATCH)
+            *policy = SP_BACKGROUND;
+/* BEGIN Motorola, rknize2, 05/10/2013, IKJBXLINE-9555 */
+        else if (rc == SCHED_RR)
+            *policy = SP_REALTIME;
+/* END Motorola, IKJBXLINE-9555 */
+        else {
+            errno = ERANGE;
+            return -1;
+        }
+>>>>>>> 522fadfcf... cutils: realtime scheduler class support:libcutils/sched_policy.c
     }
     return 0;
 }
@@ -394,13 +412,19 @@ int set_sched_policy(int tid, SchedPolicy policy)
     case SP_SYSTEM:
         SLOGD("/// tid %d (%s)", tid, thread_name);
         break;
+/* BEGIN Motorola, rknize2, 05/10/2013, IKJBXLINE-9555 */
+    case SP_REALTIME:
+        SLOGD("!!! tid %d (%s)", tid, thread_name);
+        break;
+/* END Motorola, IKJBXLINE-9555 */
     default:
         SLOGD("??? tid %d (%s)", tid, thread_name);
         break;
     }
 #endif
 
-    if (schedboost_enabled()) {
+    if (schedboost_enabled() &&
+        policy != SP_REALTIME) {
         int boost_fd = -1;
         switch (policy) {
         case SP_BACKGROUND:
@@ -423,7 +447,23 @@ int set_sched_policy(int tid, SchedPolicy policy)
             if (errno != ESRCH && errno != ENOENT)
                 return -errno;
         }
+    } else {
+        struct sched_param param;
+/* BEGIN Motorola, rknize2, 05/10/2013, IKJBXLINE-9555
+ * Allow the RT policy at the lowest priority. */
+        int posix_policy = SCHED_NORMAL;
 
+        param.sched_priority = 0; /* unused for non-RT policies */
+        if (policy == SP_BACKGROUND) {
+            posix_policy = SCHED_BATCH;
+        } else if (policy == SP_REALTIME) {
+            posix_policy = SCHED_RR;
+            param.sched_priority = 1; /* lowest RT priority */
+        }
+
+        if (sched_setscheduler(tid, posix_policy, &param) < 0)
+            SLOGE("sched_setscheduler failed: tid %d, errno=%d", tid, errno);
+/* END Motorola, IKJBXLINE-9555 */
     }
 
     set_timerslack_ns(tid, policy == SP_BACKGROUND ? TIMER_SLACK_BG : TIMER_SLACK_FG);
@@ -458,6 +498,7 @@ const char *get_sched_policy_name(SchedPolicy policy)
        [SP_AUDIO_APP]  = "aa",
        [SP_AUDIO_SYS]  = "as",
        [SP_TOP_APP]    = "ta",
+       [SP_REALTIME]   = "rt", /* Motorola, w04904, 05/10/2013, IKJBXLINE-9555 */
     };
     if ((policy < SP_CNT) && (strings[policy] != NULL))
         return strings[policy];

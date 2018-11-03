@@ -63,7 +63,6 @@ static int ta_cpuset_fd = -1; // special cpuset for top app
 static int bg_schedboost_fd = -1;
 static int fg_schedboost_fd = -1;
 static int ta_schedboost_fd = -1;
-static int rt_schedboost_fd = -1;
 
 /* Add tid to the scheduling group defined by the policy */
 static int add_tid_to_cgroup(int tid, int fd)
@@ -160,8 +159,6 @@ static void __initialize() {
                 fg_schedboost_fd = open(filename, O_WRONLY | O_CLOEXEC);
                 filename = "/dev/stune/background/tasks";
                 bg_schedboost_fd = open(filename, O_WRONLY | O_CLOEXEC);
-                filename = "/dev/stune/rt/tasks";
-                rt_schedboost_fd = open(filename, O_WRONLY | O_CLOEXEC);
             }
         }
     }
@@ -397,9 +394,6 @@ int set_sched_policy(int tid, SchedPolicy policy)
     case SP_SYSTEM:
         SLOGD("/// tid %d (%s)", tid, thread_name);
         break;
-    case SP_RT_APP:
-	SLOGD("RT  tid %d (%s)", tid, thread_name);
-	break;
     default:
         SLOGD("??? tid %d (%s)", tid, thread_name);
         break;
@@ -420,9 +414,6 @@ int set_sched_policy(int tid, SchedPolicy policy)
         case SP_TOP_APP:
             boost_fd = ta_schedboost_fd;
             break;
-        case SP_RT_APP:
-	    boost_fd = rt_schedboost_fd;
-	    break;
         default:
             boost_fd = -1;
             break;
@@ -467,7 +458,6 @@ const char *get_sched_policy_name(SchedPolicy policy)
        [SP_AUDIO_APP]  = "aa",
        [SP_AUDIO_SYS]  = "as",
        [SP_TOP_APP]    = "ta",
-       [SP_RT_APP]    = "rt",
     };
     if ((policy < SP_CNT) && (strings[policy] != NULL))
         return strings[policy];

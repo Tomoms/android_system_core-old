@@ -266,27 +266,11 @@ int get_sched_policy(int tid, SchedPolicy *policy)
         *policy = SP_BACKGROUND;
     } else if (!strcmp(grpBuf, "top-app")) {
         *policy = SP_TOP_APP;
+    } else if (!strcmp(grpBuf, "rr") || !strcmp(grpBuf, "rt")) {
+        *policy = SP_REALTIME;
     } else {
-<<<<<<< HEAD:libcutils/sched_policy.cpp
         errno = ERANGE;
         return -1;
-=======
-        int rc = sched_getscheduler(tid);
-        if (rc < 0)
-            return -1;
-        else if (rc == SCHED_NORMAL)
-            *policy = SP_FOREGROUND;
-        else if (rc == SCHED_BATCH)
-            *policy = SP_BACKGROUND;
-/* BEGIN Motorola, rknize2, 05/10/2013, IKJBXLINE-9555 */
-        else if (rc == SCHED_RR)
-            *policy = SP_REALTIME;
-/* END Motorola, IKJBXLINE-9555 */
-        else {
-            errno = ERANGE;
-            return -1;
-        }
->>>>>>> 522fadfcf... cutils: realtime scheduler class support:libcutils/sched_policy.c
     }
     return 0;
 }
